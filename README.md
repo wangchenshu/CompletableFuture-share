@@ -1,0 +1,12 @@
+# CompletableFuture-share
+
+## 主動完成計算
+
+### 創建CompletableFuture對象
+
+> CompletableFuture.completedFuture是一個靜態輔助方法，用來返回一個已經計算好的CompletableFuture
+
+`public static <U> CompletableFuture<U> completedFuture(U value)`
+
+### 參考文檔
+http://colobu.com/2016/02/29/Java-CompletableFuture/#主动完成计算
