@@ -6,19 +6,15 @@
 
 > CompletableFuture.completedFuture是一個靜態輔助方法，用來返回一個已經計算好的CompletableFuture
 
-`public static <U> CompletableFuture<U> completedFuture(U value)`
+```java
+public static <U> CompletableFuture<U> completedFuture(U value)
+```
 
 而以下四個靜態方法用來為一段異步執行的代碼創建 CompletableFuture對象：
 ```java
 public static CompletableFuture<Void> runAsync(Runnable runnable)
-```
-```java
 public static CompletableFuture<Void> runAsync(Runnable runnable, Executor executor)
-```
-```java
 public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier)
-```
-```java
 public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier, Executor executor)
 ```
 
