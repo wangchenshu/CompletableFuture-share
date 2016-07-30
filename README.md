@@ -85,13 +85,13 @@ CompletableFuture 可以作為 monad(單子) 和 functor。由於回調風格的
 而且我們還可以將這些操作串聯起來，或者將 CompletableFuture 組合起來。
 
 ```java
-public <U> CompletableFuture<U> 	thenApply(Function<? super T,? extends U> fn)
-public <U> CompletableFuture<U> 	thenApplyAsync(Function<? super T,? extends U> fn)
-public <U> CompletableFuture<U> 	thenApplyAsync(Function<? super T,? extends U> fn, Executor executor)
+public <U> CompletableFuture<U> thenApply(Function<? super T,? extends U> fn)
+public <U> CompletableFuture<U> thenApplyAsync(Function<? super T,? extends U> fn)
+public <U> CompletableFuture<U> thenApplyAsync(Function<? super T,? extends U> fn, Executor executor)
 
-public <U> CompletableFuture<U> 	handle(BiFunction<? super T,Throwable,? extends U> fn)
-public <U> CompletableFuture<U> 	handleAsync(BiFunction<? super T,Throwable,? extends U> fn)
-public <U> CompletableFuture<U> 	handleAsync(BiFunction<? super T,Throwable,? extends U> fn, Executor executor)
+public <U> CompletableFuture<U> handle(BiFunction<? super T,Throwable,? extends U> fn)
+public <U> CompletableFuture<U> handleAsync(BiFunction<? super T,Throwable,? extends U> fn)
+public <U> CompletableFuture<U> handleAsync(BiFunction<? super T,Throwable,? extends U> fn, Executor executor)
 ```
 
 這一組函數的功能是當原來的 CompletableFuture 計算完後，將結果傳遞給函數 fn，將 fn 的結果作為新的 CompletableFuture 計算結果。
@@ -104,7 +104,7 @@ public <U> CompletableFuture<U> 	handleAsync(BiFunction<? super T,Throwable,? ex
 supplyAsyncFuture
     .thenApplyAsync(i->i*2)
     .thenApply(i->i+3)
-    .whenComplete((v, e) -> out.println("(thenApplyFuture) v: " + v));
+    .whenComplete((v, e) -> System.out.println("(thenApplyFuture) v: " + v));
 ```
 
 需要注意的是，這些轉換並不是馬上執行的，也不會阻塞，而是在前一個 stage 完成後繼續執行。
@@ -116,10 +116,159 @@ supplyAsyncFuture
     .thenApplyAsync(i->i*2)
     .thenApply(i->i/0)
     .handleAsync((v, e) -> {
-        out.println(v);
-        out.println(e);
+        System.out.println(v);
+        System.out.println(e);
         return 0;
-    }).whenComplete((v, e) -> out.println("(thenApplyFuture2) v: " + v));
+    }).whenComplete((v, e) -> System.out.println("(thenApplyFuture2) v: " + v));
+```
+
+### 純消費(執行Action)
+上面的方法是當計算完成的時候，會生成新的計算結果 (thenApply, handle)，或者返回同樣的計算結果 whenComplete，
+CompletableFuture 還提供了一種處理結果的方法，只對結果執行 Action ,而不返回新的計算值，因此計算值為 Void:
+
+```java
+public CompletableFuture<Void> thenAccept(Consumer<? super T> action)
+public CompletableFuture<Void> thenAcceptAsync(Consumer<? super T> action)
+public CompletableFuture<Void> thenAcceptAsync(Consumer<? super T> action, Executor executor)
+```
+
+看它的參數類型也就明白了，它們是函數式接口 Consumer，這個接口只​​有輸入，沒有返回值。
+
+```java
+supplyAsyncFuture.thenAccept(i -> System.out.println("(thenAccept) thenAccept: " + i));
+supplyAsyncFuture.thenAcceptAsync(i -> System.out.println("(thenAcceptAsync) thenAcceptAsync: " + i));
+```
+
+thenAcceptBoth 以及相關方法提供了類似的功能，當兩個 CompletionStage 都正常完成計算的時候，就會執行提供的 action，
+它用來組合另外一個異步的結果。
+runAfterBoth 是當兩個 CompletionStage 都正常完成計算的時候,執行一個 Runnable，這個Runnable並不使用計算的結果。
+
+```java
+public <U> CompletableFuture<Void> thenAcceptBoth(CompletionStage<? extends U> other, BiConsumer<? super T,? super U> action)
+public <U> CompletableFuture<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, BiConsumer<? super T,? super U> action)
+public <U> CompletableFuture<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, BiConsumer<? super T,? super U> action, Executor executor)
+public     CompletableFuture<Void> runAfterBoth(CompletionStage<?> other,  Runnable action)
+```
+
+例子如下：
+```java
+supplyAsyncFuture.thenAcceptBoth(CompletableFuture.completedFuture(20), (x, y) -> {
+    System.out.println("(thenAcceptBoth) x: " + x);
+    System.out.println("(thenAcceptBoth) y: " + y);
+});
+```
+
+更徹底地，下面一組方法當計算完成的時候會執行一個 Runnable,與 thenAccept 不同，Runnable 並不使用 CompletableFuture 計算的結果。
+```java
+public CompletableFuture<Void> thenRun(Runnable action)
+public CompletableFuture<Void> thenRunAsync(Runnable action)
+public CompletableFuture<Void> thenRunAsync(Runnable action, Executor executor)
+```
+
+因此先前的 CompletableFuture 計算的結果被忽略了,這個方法返回 CompletableFuture<Void> 類型的對象。
+```java
+supplyAsyncFuture.thenRun(() -> System.out.println("all finished."));
+```
+
+因此，你可以根據方法的參數的類型來加速你的記憶。 Runnable 類型的參數會忽略計算的結果，Consumer 是純消費計算結果，
+BiConsumer 會組合另外一個 CompletionStage 純消費，Function 會對計算結果做轉換，BiFunction 會組合另外一個 CompletionStage 的計算結果做轉換。
+
+### 组合
+```java
+public <U> CompletableFuture<U> thenCompose(Function<? super T,? extends CompletionStage<U>> fn)
+public <U> CompletableFuture<U> thenComposeAsync(Function<? super T,? extends CompletionStage<U>> fn)
+public <U> CompletableFuture<U> thenComposeAsync(Function<? super T,? extends CompletionStage<U>> fn, Executor executor)
+```
+
+這一組方法接受一個 Function 作為參數，這個 Function 的輸入是當前的 CompletableFuture 的計算值，返回結果將是一個新的CompletableFuture，
+這個新的 CompletableFuture 會組合原來的 CompletableFuture 和函數返回的 CompletableFuture。因此它的功能類似:
+
+記住，thenCompose 返回的對象並不一是函數fn返回的對象，如果原來的 CompletableFuture 還沒有計算出來，它就會生成一個新的組合後的 CompletableFuture。
+
+例子如下：
+```java
+supplyAsyncFuture
+    .thenCompose(i -> CompletableFuture.supplyAsync(() -> i + 3))
+    .whenCompleteAsync((v, e) -> System.out.println("(thenCompose) v: " + v));
+```
+
+而下面的一組方法 thenCombine 用來複合另外一個 CompletionStage 的結果。
+兩個 CompletionStage 是並行執行的，它們之間並沒有先後依賴順序，other 並不會等待先前的 CompletableFuture 執行完畢後再執行。
+
+```java
+public <U,V> CompletableFuture<V> thenCombine(CompletionStage<? extends U> other, BiFunction<? super T,? super U,? extends V> fn)
+public <U,V> CompletableFuture<V> thenCombineAsync(CompletionStage<? extends U> other, BiFunction<? super T,? super U,? extends V> fn)
+public <U,V> CompletableFuture<V> thenCombineAsync(CompletionStage<? extends U> other, BiFunction<? super T,? super U,? extends V> fn, Executor executor)
+```
+
+其實從功能上來講,它們的功能更類似 thenAcceptBoth，只不過 thenAcceptBoth 是純消費，它的函數參數沒有返回值，而 thenCombine 的函數參數 fn 有返回值。
+
+```java
+thenCombineFuture1.thenCombine(thenCombineFuture2, (x, y) -> x + y)
+    .whenComplete((v, e) -> System.out.println("(thenCombine) v: " + v));
+```
+
+### Either
+thenAcceptBoth 和 runAfterBoth 是當兩個 CompletableFuture 都計算完成，而我們下面要了解的方法是當任意一個 CompletableFuture 計算完成的時候就會執行。
+
+```java
+public CompletableFuture<Void> 	acceptEither(CompletionStage<? extends T> other, Consumer<? super T> action)
+public CompletableFuture<Void> 	acceptEitherAsync(CompletionStage<? extends T> other, Consumer<? super T> action)
+public CompletableFuture<Void> 	acceptEitherAsync(CompletionStage<? extends T> other, Consumer<? super T> action, Executor executor)
+public <U> CompletableFuture<U> applyToEither(CompletionStage<? extends T> other, Function<? super T,U> fn)
+public <U> CompletableFuture<U> applyToEitherAsync(CompletionStage<? extends T> other, Function<? super T,U> fn)
+public <U> CompletableFuture<U> applyToEitherAsync(CompletionStage<? extends T> other, Function<? super T,U> fn, Executor executor)
+```
+
+
+acceptEither 方法是當任意一個 CompletionStage 完成的時候，action 這個消費者就會被執行。這個方法返回 CompletableFuture<Void>
+applyToEither 方法是當任意一個 CompletionStage完成的時候，fn 會被執行，它的返回值會當作新的 CompletableFuture<U> 的計算結果。
+
+下面這個例子有時會輸出 1000,有時候會輸出 2000,哪個 Future 先完成就會根據它的結果計算。
+
+```java
+Random rand = new Random();
+CompletableFuture<Integer> applyToEitherFuture1 = CompletableFuture.supplyAsync(() -> {
+    try {
+        Thread.sleep(jobSleep + rand.nextInt(1000));
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+    return 1000;
+});
+CompletableFuture<Integer> applyToEitherFuture2 = CompletableFuture.supplyAsync(() -> {
+    try {
+        Thread.sleep(jobSleep + rand.nextInt(1000));
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+    return 2000;
+});
+
+applyToEitherFuture1.applyToEither(applyToEitherFuture2, i -> i)
+    .whenComplete((v, e) -> System.out.println("(applyToEither) v: " + v)) ;
+```
+
+### 輔助方法 allOf 和 anyOf
+前面我們已經介紹了幾個靜態方法：completedFuture、runAsync、supplyAsync,
+下面介紹的這兩個方法用來組合多個 CompletableFuture。
+
+```java
+public static CompletableFuture<Void>   allOf(CompletableFuture<?>... cfs)
+public static CompletableFuture<Object> anyOf(CompletableFuture<?>... cfs)
+```
+
+allOf 方法是當所有的 CompletableFuture 都執行完後執行計算。
+anyOf 方法是當任意一個 CompletableFuture 執行完後就會執行計算，計算的結果相同。
+
+下面的代碼運行結果有時是 100, 有時是 "abc"。但是 anyOf 和 applyToEither 不同。
+anyOf 接受任意多的 CompletableFuture 但是 applyToEither 只是判斷兩個 CompletableFuture,
+anyOf 返回值的計算結果是參數中其中一個 CompletableFuture 的計算結果，applyToEither 返回值的計算結果卻是要經過 fn 處理的。
+當然還有靜態方法的區別，線程池的選擇等。
+
+```java
+CompletableFuture.anyOf(applyToEitherFuture1, applyToEitherFuture2)
+    .whenComplete((v, e) -> System.out.println("(anyOf) v: " + v)) ;
 ```
 
 ### 參考文檔
