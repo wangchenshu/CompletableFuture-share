@@ -272,5 +272,6 @@ CompletableFuture.anyOf(applyToEitherFuture1, applyToEitherFuture2)
 ```
 
 ### 參考文檔
-http://colobu.com/2016/02/29/Java-CompletableFuture/#主动完成计算，並使用自已的 sample code 展示.
-sample code: https://github.com/wangchenshu/mycompletablefuture
+#### http://colobu.com/2016/02/29/Java-CompletableFuture/#主动完成计算，
+#### 並使用自已的 sample code 展示.
+#### sample code: https://github.com/wangchenshu/mycompletablefuture
