@@ -32,5 +32,21 @@ CompletableFuture<Integer> supplyAsyncFuture = CompletableFuture.supplyAsync(() 
 // runAsync-example
 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> out.println("hello, runAsync."));
 ```
+
+### 計算結果完成時的處理
+> 當CompletableFuture的計算結果完成，或者拋出異常的時候，我們可以執行特定的Action。主要是下面的方法：
+
+```java
+public CompletableFuture<T> whenComplete(BiConsumer<? super T,? super Throwable> action)
+public CompletableFuture<T> whenCompleteAsync(BiConsumer<? super T,? super Throwable> action)
+public CompletableFuture<T> whenCompleteAsync(BiConsumer<? super T,? super Throwable> action, Executor executor)
+public CompletableFuture<T> exceptionally(Function<Throwable,? extends T> fn)
+```
+
+可以看到Action的類型是BiConsumer<? super T,? super Throwable>，它可以處理正常的計算結果，或者異常情況。
+方法不以Async結尾，意味著Action使用相同的線程執行，而Async可能會使用其它的線程去執行(如果使用相同的線程池，也可能會被同一個線程選中執行)。
+注意這幾個方法都會返回CompletableFuture，當Action執行完畢後它的結果返回原始的CompletableFuture的計算結果或者返回異常。
+
+
 ### 參考文檔
 http://colobu.com/2016/02/29/Java-CompletableFuture/#主动完成计算
