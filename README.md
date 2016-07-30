@@ -47,6 +47,27 @@ public CompletableFuture<T> exceptionally(Function<Throwable,? extends T> fn)
 方法不以Async結尾，意味著Action使用相同的線程執行，而Async可能會使用其它的線程去執行(如果使用相同的線程池，也可能會被同一個線程選中執行)。
 注意這幾個方法都會返回CompletableFuture，當Action執行完畢後它的結果返回原始的CompletableFuture的計算結果或者返回異常。
 
+```java
+//CompletableFuture<Integer> supplyAsyncFuture = CompletableFuture.supplyAsync(() -> 10000);
+CompletableFuture<Integer> supplyAsyncFuture = CompletableFuture.supplyAsync(() -> 10000/0);
 
+supplyAsyncFuture.whenComplete((v, e) -> {
+    out.println("(whenComplete) v: " + v);
+    out.println("(whenComplete) e: " + e);
+});
+
+supplyAsyncFuture.whenCompleteAsync((v, e) -> {
+    out.println("(whenCompleteAsync) v: " + v);
+    out.println("(whenCompleteAsync) e: " + e);
+});
+
+supplyAsyncFuture.exceptionally(e -> {
+    out.println("(exceptionally) ex: " + e);
+    return 0;
+}).whenCompleteAsync((v, e) -> {
+    out.println("(exceptionally) v: " + v);
+    out.println("(exceptionally) e: " + e);
+});
+```
 ### 參考文檔
 http://colobu.com/2016/02/29/Java-CompletableFuture/#主动完成计算
